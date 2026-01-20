@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SANDRA🤖</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            900: '#1a1a1a',
+                            800: '#2d2d2d',
+                            700: '#404040',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1b4b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4f46e5;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6366f1;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased">
+    <!-- Navigation -->
+    <nav class="bg-gray-900 border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <span class="text-2xl mr-2">🚀</span>
+                        <h1
+                            class="text-xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                            SQL Agent
+                        </h1>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    {% if connection_status %}
+                    <span
+                        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-800">
+                        <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                        MySQL Connected
+                    </span>
+                    {% else %}
+                    <span
+                        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-900/50 text-red-400 border border-red-800">
+                        <span class="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
+                        MySQL Disconnected
+                    </span>
+                    {% endif %}
+
+                    {% if gemini_available %}
+                    <span
+                        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-800">
+                        <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                        Gemini Available
+                    </span>
+                    {% else %}
+                    <span
+                        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-900/50 text-red-400 border border-red-800">
+                        <span class="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
+                        Gemini Unavailable
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800 mt-12">
+        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center">
+                <p class="text-gray-400 text-sm">
+                    Powered by Gemini AI + MySQL
+                </p>
+                <p class="text-gray-400 text-sm">
+                    Built with Flask & Tailwind CSS
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Utilities -->
+    <script>
+        // API call utility function
+        async function apiCall(url, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            };
+
+            const mergedOptions = {
+                ...defaultOptions,
+                ...options,
+                headers: {
+                    ...defaultOptions.headers,
+                    ...options.headers,
+                },
+            };
+
+            if (mergedOptions.body) {
+                mergedOptions.body = typeof mergedOptions.body === 'string'
+                    ? mergedOptions.body
+                    : JSON.stringify(mergedOptions.body);
+            }
+
+            const response = await fetch(url, mergedOptions);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        }
+
+        // Utility function to escape HTML
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Format SQL code with syntax highlighting
+        function formatSql(sql) {
+            if (!sql) return '';
+
+            // Simple SQL formatting
+            const formatted = sql
+                .replace(/\b(SELECT|FROM|WHERE|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AND|OR|ORDER BY|GROUP BY|HAVING|LIMIT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/gi, '<span class="text-purple-400 font-semibold">$1</span>')
+                .replace(/\b(\w+)\b(?=\s*\()/g, '<span class="text-cyan-400">$1</span>')
+                .replace(/'[^']*'/g, '<span class="text-green-400">$&</span>')
+                .replace(/\b(\d+)\b/g, '<span class="text-yellow-400">$1</span>');
+
+            return formatted;
+        }
+
+        // Copy to clipboard utility
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Show success message (you could add a toast here)
+                console.log('Copied to clipboard');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

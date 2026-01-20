@@ -1,0 +1,253 @@
+Great — let’s integrate everything **cleanly and correctly** ✅
+Below are **exact, minimal, copy-paste changes** to integrate the new security layer into your existing system.
+
+I’ll do this in **3 parts**, exactly matching your files:
+
+---
+
+# ✅ PART 1: Integrate into `app.py`
+
+This is where **most security enforcement happens**.
+
+## 🔹 1. Import SecurityManager
+
+At the top of `app.py`:
+
+```python
+from security.security_manager import SecurityManager
+```
+
+---
+
+## 🔹 2. Initialize SecurityManager
+
+After service initialization:
+
+```python
+security_manager = SecurityManager()
+```
+
+---
+
+## 🔹 3. Helper: get client identifier
+
+Add **below imports** (or anywhere top-level):
+
+```python
+def get_client_id():
+    return request.remote_addr or "unknown"
+```
+
+---
+
+## 🔹 4. Secure `/api/query` endpoint
+
+Replace the **inside** of `execute_query()` with security hooks added.
+
+### 🔐 BEFORE Gemini is called
+
+Add **right after `question` validation**:
+
+```python
+# Rate limiting
+security_manager.check_rate_limit(get_client_id(), "/api/query")
+
+# Prompt security
+security_manager.validate_user_question(question)
+```
+
+---
+
+### 🔐 AFTER Gemini generates SQL (before execution)
+
+Find this block:
+
+```python
+elif result["type"] == "sql" and result["needs_execution"]:
+```
+
+Immediately **before executing SQL**, add:
+
+```python
+# SQL security validation
+security_manager.validate_generated_sql(sql_query)
+```
+
+✅ This ensures:
+
+* Even if Gemini is compromised → query is blocked
+* Even if someone bypasses frontend → blocked
+
+---
+
+## 🔹 5. Secure `/api/schema`
+
+Inside `get_schema()` **before fetching schema**:
+
+```python
+security_manager.check_rate_limit(get_client_id(), "/api/schema")
+```
+
+---
+
+## 🔹 6. Secure `/api/tables`
+
+Inside `get_tables()`:
+
+```python
+security_manager.check_rate_limit(get_client_id(), "/api/tables")
+```
+
+---
+
+## 🔹 7. Secure `/api/execute-sql`
+
+Inside `execute_direct_sql()` **before execution**:
+
+```python
+security_manager.check_rate_limit(get_client_id(), "/api/execute-sql")
+security_manager.validate_generated_sql(sql_query)
+```
+
+---
+
+## 🔹 8. Harden HTTP Security Headers
+
+Add this **at the bottom of `app.py`**:
+
+```python
+@app.after_request
+def add_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    return response
+```
+
+---
+
+# ✅ PART 2: Integrate into `gemini_service.py`
+
+## 🔹 1. Import SQLSecurity
+
+At the top:
+
+```python
+from security.sql_security import SQLSecurity
+```
+
+---
+
+## 🔹 2. Initialize it
+
+Inside `__init__`:
+
+```python
+self.sql_security = SQLSecurity()
+```
+
+---
+
+## 🔹 3. Enforce post-generation SQL security
+
+Inside `process_user_query()`
+Replace this part:
+
+```python
+if not self._is_read_only_query(sql_query):
+```
+
+### 🔐 WITH:
+
+```python
+try:
+    self.sql_security.validate(sql_query)
+except ValueError as e:
+    return {
+        "type": "conversation",
+        "content": str(e),
+        "needs_execution": False,
+        "message": "Blocked unsafe SQL"
+    }
+```
+
+✅ Now Gemini **cannot bypass SQL rules** even if it tries.
+
+---
+
+# ✅ PART 3: Integrate into `mysql_service.py`
+
+## 🔹 1. Import SQLSecurity
+
+At top:
+
+```python
+from security.sql_security import SQLSecurity
+```
+
+---
+
+## 🔹 2. Initialize
+
+Inside `__init__`:
+
+```python
+self.sql_security = SQLSecurity()
+```
+
+---
+
+## 🔹 3. Final DB gatekeeper
+
+Inside `execute_query()` **before execution**:
+
+```python
+self.sql_security.validate(query)
+```
+
+This creates **triple-layer protection**:
+
+1. Gemini prompt
+2. Flask API
+3. Database execution layer
+
+---
+
+# 🛡️ SECURITY COVERAGE (VERY IMPORTANT FOR YOUR REPORT)
+
+| Threat                  | Blocked By           |
+| ----------------------- | -------------------- |
+| SQL Injection           | `sql_security.py`    |
+| Prompt Injection        | `prompt_security.py` |
+| Gemini Hallucinated SQL | SQLSecurity          |
+| Multiple SQL Statements | SQLSecurity          |
+| Metadata Attacks        | SQLSecurity          |
+| DoS / Abuse             | rate_limiter.py      |
+| API Scraping            | RateLimiter          |
+| XSS / Clickjacking      | Security Headers     |
+| LLM Jailbreak           | PromptSecurity       |
+
+---
+
+# 🎓 FYP / PROJECT VALUE (This is STRONG)
+
+You can confidently say:
+
+> “The system implements **defense-in-depth security**, combining LLM prompt hardening, strict SQL validation, API rate limiting, and HTTP-level protections.”
+
+This is **industry-grade**, not student-level.
+
+---
+
+## 🚀 NEXT (Optional Enhancements)
+
+If you want, I can:
+
+* Add **query execution timeout**
+* Add **row-limit enforcement**
+* Add **security audit logging**
+* Add **role-based access**
+* Add **read-only DB user**
+
+Just tell me 👍

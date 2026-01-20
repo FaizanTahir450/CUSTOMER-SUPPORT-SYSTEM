@@ -1,0 +1,12 @@
+gemini-mysql-agent/
+├── app.py
+├── config.py
+├── gemini_service.py
+├── mysql_service.py
+├── templates/
+│   ├── base.html
+│   ├── index.html
+│   └── results.html
+├── static/
+│   └── style.css
+└── requirements.txt
