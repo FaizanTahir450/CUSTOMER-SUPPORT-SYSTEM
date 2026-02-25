@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Support Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        .chat-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem 1rem;
+        }
+        .message {
+            max-width: 600px;
+            margin-bottom: 1rem;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container bg-gradient-to-br from-blue-50 to-indigo-100">
+        <!-- Header -->
+        <div class="bg-white shadow-md px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-full">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-800">Customer Support</h1>
+                    <p class="text-sm text-gray-500">AI-powered assistance</p>
+                </div>
+            </div>
+            <button onclick="toggleSettings()" class="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                Settings
+            </button>
+        </div>
+
+        <!-- Settings Panel -->
+        <div id="settingsPanel" class="bg-yellow-50 border-b border-yellow-200 px-6 py-4 hidden">
+            <div class="max-w-2xl">
+                <h3 class="font-semibold text-gray-700 mb-3">Configuration</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">API URL</label>
+                        <input type="text" id="apiUrl" value="http://localhost:8000" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">User ID</label>
+                        <input type="text" id="userId" value="user123" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Messages Area -->
+        <div id="messagesArea" class="messages-area">
+            <div id="messagesContainer" class="max-w-4xl mx-auto space-y-4"></div>
+        </div>
+
+        <!-- Quick Questions -->
+        <div id="quickQuestions" class="px-4 pb-4">
+            <div class="max-w-4xl mx-auto">
+                <p class="text-sm text-gray-600 mb-2">Quick questions:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <button onclick="setInput('What\'s your return policy?')" class="text-left px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 transition-colors">
+                        What's your return policy?
+                    </button>
+                    <button onclick="setInput('Check my order status')" class="text-left px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 transition-colors">
+                        Check my order status
+                    </button>
+                    <button onclick="setInput('What are your shipping options?')" class="text-left px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 transition-colors">
+                        What are your shipping options?
+                    </button>
+                    <button onclick="setInput('How can I contact support?')" class="text-left px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 transition-colors">
+                        How can I contact support?
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="bg-white border-t border-gray-200 px-4 py-4">
+            <div class="max-w-4xl mx-auto flex gap-3">
+                <input type="text" id="messageInput" placeholder="Type your message..." onkeypress="handleKeyPress(event)" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <button onclick="sendMessage()" id="sendButton" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                    </svg>
+                    <span class="hidden sm:inline">Send</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let messages = [];
+        let isLoading = false;
+
+        // Initialize with welcome message
+        function init() {
+            addMessage('bot', 'Hi! I\'m your customer support assistant. I can help you with company information, policies, or check your order status. How can I assist you today?');
+        }
+
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function setInput(text) {
+            document.getElementById('messageInput').value = text;
+            document.getElementById('messageInput').focus();
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        function addMessage(type, text, isError = false) {
+            const timestamp = new Date();
+            messages.push({ type, text, timestamp, isError });
+            renderMessages();
+            
+            // Hide quick questions after first user message
+            if (type === 'user' && messages.filter(m => m.type === 'user').length === 1) {
+                document.getElementById('quickQuestions').style.display = 'none';
+            }
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('messagesContainer');
+            container.innerHTML = '';
+
+            messages.forEach(message => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `flex items-start gap-3 ${message.type === 'user' ? 'flex-row-reverse' : ''}`;
+
+                const avatar = document.createElement('div');
+                avatar.className = `flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                    message.type === 'user' ? 'bg-indigo-600' : message.isError ? 'bg-red-500' : 'bg-gray-300'
+                }`;
+                
+                const icon = message.type === 'user' 
+                    ? '<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>'
+                    : '<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>';
+                avatar.innerHTML = icon;
+
+                const contentWrapper = document.createElement('div');
+                contentWrapper.className = `flex flex-col ${message.type === 'user' ? 'items-end' : 'items-start'}`;
+
+                const bubble = document.createElement('div');
+                bubble.className = `px-4 py-3 rounded-2xl max-w-md ${
+                    message.type === 'user'
+                        ? 'bg-indigo-600 text-white'
+                        : message.isError
+                        ? 'bg-red-50 text-red-800 border border-red-200'
+                        : 'bg-white text-gray-800 shadow-sm'
+                }`;
+                bubble.innerHTML = `<p class="text-sm whitespace-pre-wrap">${message.text}</p>`;
+
+                const time = document.createElement('span');
+                time.className = 'text-xs text-gray-500 mt-1 px-1';
+                time.textContent = formatTime(message.timestamp);
+
+                contentWrapper.appendChild(bubble);
+                contentWrapper.appendChild(time);
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(contentWrapper);
+                container.appendChild(messageDiv);
+            });
+
+            // Add loading indicator
+            if (isLoading) {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'flex items-start gap-3';
+                loadingDiv.innerHTML = `
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                    </div>
+                    <div class="bg-white px-4 py-3 rounded-2xl shadow-sm">
+                        <svg class="w-5 h-5 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                `;
+                container.appendChild(loadingDiv);
+            }
+
+            // Scroll to bottom
+            const messagesArea = document.getElementById('messagesArea');
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || isLoading) return;
+
+            const apiUrl = document.getElementById('apiUrl').value;
+            const userId = document.getElementById('userId').value;
+
+            addMessage('user', message);
+            input.value = '';
+            isLoading = true;
+            renderMessages();
+
+            try {
+                const response = await fetch(`${apiUrl}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        message: message
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to get response');
+                }
+
+                const data = await response.json();
+                addMessage('bot', data.response);
+            } catch (error) {
+                addMessage('bot', `Error: ${error.message}. Please make sure the API is running at ${apiUrl}`, true);
+            } finally {
+                isLoading = false;
+                renderMessages();
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Initialize on load
+        window.onload = init;
+    </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+
+# Virtual environments
+venv/
+.venv/
+
+# Environment variables / secrets
+.env
+secrets.env
+
+# IDEs and editors
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+*.log
+
+# Mypy / type check
+.mypy_cache/
+
+# Django stuff:
+local_settings.py
+db.sqlite3
+
+# Project-specific databases and stores
+chroma_db/
+chroma.sqlite3
+customer_support.db
+*.db
+
+# Build / packaging
+dist/
+build/
+*.egg-info/
+
+# Misc
+.cache/
+.tox/
