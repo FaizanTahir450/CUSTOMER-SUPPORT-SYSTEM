@@ -1,11 +1,11 @@
 # graph.py
 from langgraph.graph import StateGraph, END
 from typing import TypedDict
-from classifiers import classify_query, classify_relevant_query
-from memory import LLMCustomerSupportMemory
-from vector_store import search_company_info
-from db import get_order_info
-from llm import get_llm
+from models.classifiers import classify_query, classify_relevant_query
+from utils.memory import LLMCustomerSupportMemory
+from services.vector_store import search_company_info
+from database.db import get_order_info
+from services.llm import get_llm
 
 class SupportState(TypedDict):
     user_id: str

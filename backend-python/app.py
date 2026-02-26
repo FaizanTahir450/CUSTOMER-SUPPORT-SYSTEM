@@ -2,12 +2,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from graph import create_support_graph
-from db import init_database
-from vector_store import init_vector_store
+from utils.graph import create_support_graph
+from database.db import init_database
+from services.vector_store import init_vector_store
 import uvicorn
 import traceback
-from memory import LLMCustomerSupportMemory
+from utils.memory import LLMCustomerSupportMemory
 
 app = FastAPI(title="Customer Support API")
 

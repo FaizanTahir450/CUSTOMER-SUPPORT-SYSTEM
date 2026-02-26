@@ -17,4 +17,4 @@ class Config:
     MODEL_NAME = os.getenv("MODEL_NAME", "google/gemini-2.5-flash")
     
     # PDF Path
-    PDF_PATH = os.getenv("PDF_PATH", "Lama1.pdf")
+    PDF_PATH = os.getenv("PDF_PATH", "docs/Lama1.pdf")

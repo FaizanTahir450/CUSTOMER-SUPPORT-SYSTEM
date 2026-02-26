@@ -1,5 +1,5 @@
 # classifiers.py
-from llm import get_llm
+from services.llm import get_llm
 
 def classify_query(message: str) -> str:
     """

@@ -1,5 +1,5 @@
 # db.py
-from mysql_service import MySQLService
+from services.mysql_service import MySQLService
 from typing import Optional
 
 # Global MySQL service instance

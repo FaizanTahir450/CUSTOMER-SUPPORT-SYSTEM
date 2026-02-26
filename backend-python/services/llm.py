@@ -1,6 +1,6 @@
 # llm.py
 from langchain_openai import ChatOpenAI
-from config import Config
+from config.config import Config
 
 _llm_instance = None
 _extraction_llm_instance = None

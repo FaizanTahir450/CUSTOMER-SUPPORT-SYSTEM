@@ -1,6 +1,6 @@
 import json
 from typing import Dict, Any
-from llm import get_extraction_llm  # Your existing LLM instance
+from services.llm import get_extraction_llm  # Your existing LLM instance
 
 class LLMCustomerSupportMemory:
     """

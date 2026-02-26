@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
-from config import Config
+from config.config import Config
 
 
 class MySQLService:
