@@ -1,12 +1,31 @@
 
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { NAV_LINKS } from '../constants';
-import { useAuth } from '../context/AuthContext';
+import { authToken } from '../services/client';
+import { authUtils } from '../services/authUtils';
 
 const Navbar: React.FC = () => {
   const location = useLocation();
-  const { user, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const ADMIN_EMAIL = 'admin@lumina.com';
+
+  useEffect(() => {
+    // Check authentication and admin status whenever location changes (after login/logout)
+    const authenticated = authUtils.isAuthenticated();
+    const user = authUtils.getUser();
+    setIsAuthenticated(authenticated);
+    setIsAdmin(authenticated && user?.email === ADMIN_EMAIL);
+  }, [location]);
+
+  const handleLogout = () => {
+    authUtils.logout();
+    setIsAuthenticated(false);
+    navigate('/login');
+  };
+  
 
   return (
     <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100">
@@ -26,16 +45,6 @@ const Navbar: React.FC = () => {
                   {link.name}
                 </Link>
               ))}
-              {user?.role === 'admin' && (
-                <Link
-                  to="/admin"
-                  className={`text-sm font-semibold transition-colors ${
-                    location.pathname === '/admin' ? 'text-indigo-600' : 'text-indigo-500 hover:text-indigo-700'
-                  }`}
-                >
-                  Admin Panel
-                </Link>
-              )}
             </div>
           </div>
           
@@ -47,11 +56,19 @@ const Navbar: React.FC = () => {
               Support
             </Link>
             
+            {isAdmin && (
+              <Link 
+                to="/admin" 
+                className="px-4 py-2 text-slate-600 text-sm font-medium hover:text-slate-900 transition-all flex items-center gap-2"
+              >
+                Admin
+              </Link>
+            )}
+            
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
-                <span className="text-xs text-slate-500 hidden sm:inline">Hi, {user?.name}</span>
                 <button 
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="px-4 py-2 border border-slate-200 text-slate-700 text-sm font-medium rounded-full hover:bg-slate-50 transition-all"
                 >
                   Logout

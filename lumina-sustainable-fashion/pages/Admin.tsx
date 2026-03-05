@@ -1,14 +1,20 @@
 
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { authUtils } from '../services/authUtils';
 import { PRODUCTS } from '../constants';
 
 const Admin: React.FC = () => {
-  const { user } = useAuth();
+  const user = authUtils.getUser();
+  const ADMIN_EMAIL = 'admin@lumina.com';
 
-  if (user?.role !== 'admin') {
+  if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Check if user is admin
+  if (user.email !== ADMIN_EMAIL) {
+    return <Navigate to="/" replace />;
   }
 
   const stats = [

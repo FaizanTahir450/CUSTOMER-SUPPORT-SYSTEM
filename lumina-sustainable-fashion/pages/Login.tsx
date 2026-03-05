@@ -1,28 +1,34 @@
 
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import  {login,signup} from '../services/authservice';
+import { authToken } from '../services/client';
+import { authUtils } from '../services/authUtils';
+
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isLogin, setIsLogin] = useState(true);
-  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = await login(email, password);
-    if (success) {
-      const from = (location.state as any)?.from?.pathname || '/';
-      navigate(from, { replace: true });
-    } else {
-      setError('Invalid email or password. Use admin@lumina.com / admin123');
+    try{
+        const result = isLogin 
+          ? await login({email,password})
+          : await signup({email,password,name});
+        authToken.set(result.token);
+        authUtils.setUser(result.user);
+        navigate('/');
+    }catch(err:any){
+      setError(err.message || 'Login or signup failed. Please try again.');
     }
-  };
+  }
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex">
@@ -80,6 +86,18 @@ const Login: React.FC = () => {
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none transition-all"
                 />
               </div>
+              {!isLogin && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your full name"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none transition-all"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between text-sm">
@@ -87,7 +105,13 @@ const Login: React.FC = () => {
                 <input type="checkbox" className="rounded text-indigo-600 focus:ring-indigo-600" />
                 <span className="text-slate-600">Remember me</span>
               </label>
-              <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">Forgot password?</a>
+              <button
+                type="button"
+                onClick={() => navigate('/forgot-password')}
+                className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
+              >
+                Forgot password?
+              </button>
             </div>
 
             <button

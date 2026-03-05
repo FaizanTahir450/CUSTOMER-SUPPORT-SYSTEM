@@ -1,30 +1,42 @@
 
 import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import Support from './pages/Support';
 import Login from './pages/Login';
 import Admin from './pages/Admin';
-import { AuthProvider } from './context/AuthContext';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import { authToken } from './services/client';
 
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const token = authToken.get();
+  if (!token)
+    return <Navigate to="/login" replace />;
+  return <>{children} </>;
+
+}
 const App: React.FC = () => {
   return (
-    <AuthProvider>
+
       <Router>
         <div className="min-h-screen flex flex-col bg-white">
           <Navbar />
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route path="/shop" element={<RouteWrapper><Shop /></RouteWrapper>} />
-              <Route path="/support" element={<Support />} />
+              <Route path="/shop" element={<RequireAuth><RouteWrapper><Shop /></RouteWrapper></RequireAuth>} />
+              <Route path="/support" element={<RequireAuth><Support /></RequireAuth>} />
               <Route path="/login" element={<Login />} />
-              <Route path="/admin" element={<Admin />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
             </Routes>
           </main>
-          
+
           <footer className="bg-white border-t border-slate-100 py-12 mt-auto">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-8">
               <div className="text-2xl font-bold tracking-tighter text-slate-900">LUMINA</div>
@@ -39,7 +51,7 @@ const App: React.FC = () => {
           </footer>
         </div>
       </Router>
-    </AuthProvider>
+    
   );
 };
 
