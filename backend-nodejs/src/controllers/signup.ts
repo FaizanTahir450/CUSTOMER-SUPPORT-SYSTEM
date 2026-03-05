@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import type { RowDataPacket } from 'mysql2';
 import { pool } from '../lib/db';
+import { logger } from '../lib/logger';
 
 const signupSchema = z.object({
     email:
@@ -28,34 +29,43 @@ const signupSchema = z.object({
 });
 
 export async function signupHandler(req: Request, res: Response, next: NextFunction) {
-    const log = (req as any).log;
+    const log = (req as any).log || logger;
     try {
+        log?.debug({ email: req.body.email }, 'Signup attempt');
         const parsed = signupSchema.safeParse(req.body);
         if (!parsed.success) {
+            log?.warn({ errors: parsed.error.issues }, 'Signup validation failed');
             return res.status(400).json({
                 error: { code: "validation error", message: parsed.error.issues[0]?.message || 'Invalid input' }
             });
         }
         const { email, password, name } = parsed.data;
+        log?.debug({ email }, 'Checking if user already exists');
         const [existingUser] = await pool.execute<RowDataPacket[]>(
             `select id from users where email = ?`, [email]);
         if (existingUser.length > 0) {
+            log?.warn({ email }, 'Signup failed: email already exists');
             return res.status(409).json({
                 error: { code: "Email exists", message: "An account with this email already exists" }
             })
         };
+        log?.debug({ email }, 'Hashing password');
         const passwordHash = await bcrypt.hash(password,12);
+        log?.debug({ email }, 'Inserting new user into database');
         await pool.execute(
             `INSERT INTO users (id,email,password_hash,name)
             values (UUID(),?,?,?)`,
             [email, passwordHash, name || null]
         )
+        log?.debug({ email }, 'Retrieving newly created user');
         const [users] = await pool.execute<RowDataPacket[]>(
             `select id,email,name,created_at from users where email = ?`, [email]);
         const user = users[0];
         if(!user){
+            log?.error({ email }, 'Signup failed: user insert failed');
             throw new Error('User insert failed');
         }
+        log?.debug({ email }, 'Generating JWT token');
         const token = jwt.sign(
             {sub:user.id,email:user.email},
             process.env.JWT_SECRET || 'default_secret',
@@ -70,7 +80,7 @@ export async function signupHandler(req: Request, res: Response, next: NextFunct
 
         
     }catch(err){
-        log?.error(err, 'Error during signup');
+        log?.error({ err }, 'Error during signup: unexpected error');
         return next(err);
     }
 }

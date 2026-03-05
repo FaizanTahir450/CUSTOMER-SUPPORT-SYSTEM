@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { RowDataPacket } from 'mysql2';
 import { pool } from '../lib/db';
+import { logger } from '../lib/logger';
 
 const loginschema = z.object({
     email:
@@ -17,10 +18,12 @@ const loginschema = z.object({
 });
 
 export async function loginhandler(req: Request, res: Response, next: NextFunction) {
-    const log = (req as any).log;
+    const log = (req as any).log || logger;
     try {
+        log?.debug({ email: req.body.email }, 'Login attempt');
         const parsed = loginschema.safeParse(req.body);
         if (!parsed.success) {
+            log?.warn({ errors: parsed.error.issues }, 'Login validation failed');
             return res.status(400).json({
                 error: { code: "validation error", message: parsed.error.issues[0]?.message || 'invalid input' }
             });
@@ -31,13 +34,14 @@ export async function loginhandler(req: Request, res: Response, next: NextFuncti
         );
         const user = users[0];
         if (!user) {
-            log?.warn({ email }, 'Login failed invalid password');
+            log?.warn({ email }, 'Login failed: user not found');
             return res.status(401).json({
                 error: { code: "invalid credentials", message: "Invalid email or password    " }
             })
         }
         const match = await bcrypt.compare(password,user.password_hash);
         if(!match){
+            log?.warn({ email }, 'Login failed: invalid password');
             return res.status(401).json({error:{code:"invalid credentials",message:"Invalid email or password"}})
         }
 
@@ -55,7 +59,7 @@ export async function loginhandler(req: Request, res: Response, next: NextFuncti
 
     }
     catch (err) {
-        log?.error({ err }, 'Login error');
+        log?.error({ err }, 'Login error: unexpected error');
         return next(err);
     }
 }

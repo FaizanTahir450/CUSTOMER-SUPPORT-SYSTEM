@@ -66,6 +66,20 @@ export async function ensureSchema(){
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
     );
 
+
+    await pool.execute(`
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id char(36) not null primary key,
+        user_id char(36) not null,
+        token VARCHAR(255) NOT NULL UNIQUE,
+        expires_at datetime NOT NULL,
+        used_at datetime null,
+        created_at TIMESTAMP not null DEFAULT CURRENT_TIMESTAMP,
+        constraint fk_reset_user foreign key (user_id) references users(id) on delete cascade
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+    );
+
+
     await pool.execute(`
         CREATE TABLE IF NOT EXISTS orders (
   id INT NOT NULL AUTO_INCREMENT primary key,
