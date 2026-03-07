@@ -6,14 +6,13 @@ import { PRODUCTS } from '../constants';
 
 const Admin: React.FC = () => {
   const user = authUtils.getUser();
-  const ADMIN_EMAIL = 'admin@lumina.com';
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Check if user is admin
-  if (user.email !== ADMIN_EMAIL) {
+  // Check if user is admin using role field
+  if (user.role !== 'admin') {
     return <Navigate to="/" replace />;
   }
 
