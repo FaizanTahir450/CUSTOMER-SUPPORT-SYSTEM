@@ -39,6 +39,8 @@ venv/
 .env.local
 .env.*.local
 secrets.env
+backend-python/credentials.json
+backend-python/token.json
 
 # IDEs and editors
 .vscode/
