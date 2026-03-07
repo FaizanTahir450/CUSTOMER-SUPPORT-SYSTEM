@@ -1,7 +1,7 @@
 # tests/test_db.py
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from app.models.database import get_orders, cancel_order, get_mysql_service
+from app.models.database import get_orders, cancel_order, get_db_service
 from datetime import datetime
 
 

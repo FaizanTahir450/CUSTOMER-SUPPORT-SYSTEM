@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from app.services.email.gmail import GmailService
 from app.services.memory import LLMCustomerSupportMemory
-from app.models.database import get_mysql_service
+from app.models.database import get_db_service
 from app.config import Config
 
 logger = logging.getLogger(__name__)

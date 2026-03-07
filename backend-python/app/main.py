@@ -8,7 +8,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from app.services.graph import create_support_graph
-from app.models.database import init_database, get_mysql_service
+from app.models.database import init_database, get_db_service
 from app.services.vector_store import init_vector_store
 from app.services.memory import LLMCustomerSupportMemory
 from app.services.email.poller import EmailPoller
