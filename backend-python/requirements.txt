@@ -1,0 +1,37 @@
+# Web framework
+fastapi==0.104.1
+uvicorn==0.24.0
+slowapi==0.1.9
+
+# LangChain stack
+langchain==0.1.0
+langchain-openai==0.0.2
+langchain-community==0.0.10
+langgraph==0.0.20
+
+# Vector store
+chromadb==0.4.22
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+
+# Google / Gmail
+google-auth==2.48.0
+google-auth-oauthlib==1.2.4
+google-api-python-client==2.190.0
+google-auth-httplib2==0.3.0
+
+# AI / LLM utilities
+tiktoken==0.5.2
+pypdf==3.17.1
+langfuse==2.21.0
+
+# General
+pydantic==2.5.0
+python-dotenv==1.0.0
+pandas==2.1.4
+
+# Pinned to resolve aiohttp <-> multidict conflict
+yarl>=1.9,<2.0
+multidict>=4.5,<7.0
