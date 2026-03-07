@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from 'express';
 import helmet from 'helmet';
 import {authRouter} from './routes/auth';
-import {ensureSchema,pool} from './lib/db';
+import {supabase} from './lib/db';
 import {errorHandler} from './middleware/errorHandler';
 import {httpLogger, logger} from './lib/logger';
 import {requestIdMiddleware} from './middleware/requestId';
@@ -32,18 +32,14 @@ app.use(errorHandler);
 
 const server = app.listen(PORT, async() => {
     try {
-        // Ensure database and schema exist first
-        await ensureSchema();
-        logger.info('Database schema ensured');
+        // Test the Supabase connection with a simple query
+        const { error } = await supabase.from('users').select('id').limit(1);
+        if (error) {
+            logger.error(error, 'Error connecting to Supabase database');
+            process.exit(1);
+        }
         
-        // Then test the connection
-        await pool.getConnection().then(conn => {
-            logger.info('Connected to MySQL database');
-            conn.release();
-        }).catch(err => {
-            logger.error(err, 'Error connecting to MySQL database');
-        })
-        
+        logger.info('Connected to Supabase database');
         logger.info({ port: PORT }, 'Server is running');
     } catch(err) {
         logger.error(err, 'Error during server startup');
@@ -56,8 +52,6 @@ process.on('SIGTERM', async () => {
     logger.info('SIGTERM received, shutting down gracefully');
     server.close(async () => {
         logger.info('Server closed');
-        await pool.end();
-        logger.info('Database connection closed');
         process.exit(0);
     });
 });
@@ -66,8 +60,6 @@ process.on('SIGINT', async () => {
     logger.info('SIGINT received, shutting down gracefully');
     server.close(async () => {
         logger.info('Server closed');
-        await pool.end();
-        logger.info('Database connection closed');
         process.exit(0);
     });
 });

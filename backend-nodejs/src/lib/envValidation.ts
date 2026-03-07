@@ -5,9 +5,8 @@ import { logger } from './logger';
  */
 export function validateEnvironment() {
   const requiredVars = [
-    'MYSQL_HOST',
-    'MYSQL_USER',
-    'MYSQL_DATABASE',
+    'SUPABASE_URL',
+    'SUPABASE_ANON_KEY',
     'JWT_SECRET',
     'PORT'
   ];

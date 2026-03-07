@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from 'express'
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import type { RowDataPacket } from 'mysql2';
-import { pool } from '../lib/db';
+import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '../lib/db';
 import { logger } from '../lib/logger';
 
 const signupSchema = z.object({
@@ -41,45 +41,78 @@ export async function signupHandler(req: Request, res: Response, next: NextFunct
         }
         const { email, password, name } = parsed.data;
         log?.debug({ email }, 'Checking if user already exists');
-        const [existingUser] = await pool.execute<RowDataPacket[]>(
-            `select id from users where email = ?`, [email]);
-        if (existingUser.length > 0) {
+        
+        // CHECK IF USER EXISTS
+        const { data: existingUser, error: checkError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', email)
+            .maybeSingle();
+        
+        if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+        }
+        
+        if (existingUser) {
             log?.warn({ email }, 'Signup failed: email already exists');
             return res.status(409).json({
                 error: { code: "Email exists", message: "An account with this email already exists" }
             })
         };
+        
         log?.debug({ email }, 'Hashing password');
-        const passwordHash = await bcrypt.hash(password,12);
+        const passwordHash = await bcrypt.hash(password, 12);
+        const userId = uuidv4();
+        
         log?.debug({ email }, 'Inserting new user into database');
-        await pool.execute(
-            `INSERT INTO users (id,email,password_hash,name)
-            values (UUID(),?,?,?)`,
-            [email, passwordHash, name || null]
-        )
-        log?.debug({ email }, 'Retrieving newly created user');
-        const [users] = await pool.execute<RowDataPacket[]>(
-            `select id,email,name,created_at from users where email = ?`, [email]);
-        const user = users[0];
-        if(!user){
-            log?.error({ email }, 'Signup failed: user insert failed');
-            throw new Error('User insert failed');
+        
+        // INSERT NEW USER
+        const { data: insertResult, error: insertError } = await supabase
+            .from('users')
+            .insert([{
+                id: userId,
+                email: email,
+                password_hash: passwordHash,
+                name: name || null,
+                role: 'user'
+            }])
+            .select();
+        
+        if (insertError) {
+            log?.error({ insertError, email }, 'Failed to insert user');
+            throw insertError;
         }
+        
+        log?.debug({ email }, 'User created, retrieving user data');
+        
+        // RETRIEVE NEWLY CREATED USER
+        const { data: users, error: selectError } = await supabase
+            .from('users')
+            .select('id, email, name, role, created_at')
+            .eq('email', email)
+            .single();
+        
+        if (selectError || !users) {
+            log?.error({ email, selectError }, 'Signup failed: user select failed');
+            throw new Error('User insert verification failed');
+        }
+        
+        const user = users;
+        
         log?.debug({ email }, 'Generating JWT token');
         const token = jwt.sign(
-            {sub:user.id,email:user.email},
+            { sub: user.id, email: user.email, role: user.role },
             process.env.JWT_SECRET || 'default_secret',
-            {expiresIn:'24h'}
+            { expiresIn: '24h' }
         );
 
-        log?.info({userId:user.id,email:user.email},'User signed up successfully');
+        log?.info({ userId: user.id, email: user.email }, 'User signed up successfully');
         return res.status(201).json({
-            user: {id:user.id,email:user.email,name:user.name,created_at:user.created_at},
+            user: { id: user.id, email: user.email, name: user.name, role: user.role, created_at: user.created_at },
             token
         });
 
-        
-    }catch(err){
+    } catch (err) {
         log?.error({ err }, 'Error during signup: unexpected error');
         return next(err);
     }
