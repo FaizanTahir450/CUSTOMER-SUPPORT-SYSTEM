@@ -41,7 +41,7 @@ class EmailPoller:
     def __init__(self, support_graph):
         self.support_graph = support_graph
         self.gmail_service: Optional[GmailService] = None   # lazy-init in thread
-        self.mysql_service = get_mysql_service()
+        self.mysql_service = get_db_service()
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
 

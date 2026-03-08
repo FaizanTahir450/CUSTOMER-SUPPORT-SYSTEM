@@ -34,6 +34,7 @@ class Config:
 
     # ── API Security ─────────────────────────────────────────────────────────
     API_KEY = os.getenv("API_KEY", "")  # Required for /chat endpoint
+    JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key")  # Secret key for JWT token verification
     RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "15"))
 
     # ── LangSmith Observability ──────────────────────────────────────────────

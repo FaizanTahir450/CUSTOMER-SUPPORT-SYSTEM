@@ -162,7 +162,7 @@ async def chat(
 
         logger.info(f"Chat request from user {payload.user_id}")
         
-        mysql_service = get_mysql_service()
+        mysql_service = get_db_service()
         memory = LLMCustomerSupportMemory(
             mysql_service=mysql_service,
             user_id=payload.user_id
@@ -203,7 +203,7 @@ async def get_history(request: Request, user_id: str, api_key: str = Depends(ver
     try:
         logger.info(f"History request for user {user_id}")
         
-        mysql_service = get_mysql_service()
+        mysql_service = get_db_service()
         memory = LLMCustomerSupportMemory(
             mysql_service=mysql_service,
             user_id=user_id

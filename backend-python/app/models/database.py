@@ -108,7 +108,7 @@ def cancel_order(order_id: str, user_id: str) -> tuple[bool, str | None]:
 
     Uses `SupabaseService.cancel_order` which only updates when status is pending.
     """
-    mysql_service = get_mysql_service()
+    mysql_service = get_db_service()
     try:
         success, error = mysql_service.cancel_order(order_id, user_id)
         return success, error

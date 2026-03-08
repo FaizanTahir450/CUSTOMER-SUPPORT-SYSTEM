@@ -30,7 +30,8 @@ langfuse==2.21.0
 # General
 pydantic==2.5.0
 python-dotenv==1.0.0
-pandas==2.1.4
+pandas>=2.2.0
+PyJWT==2.11.0
 
 # Pinned to resolve aiohttp <-> multidict conflict
 yarl>=1.9,<2.0
