@@ -102,7 +102,7 @@ export async function signupHandler(req: Request, res: Response, next: NextFunct
         log?.debug({ email }, 'Generating JWT token');
         const token = jwt.sign(
             { sub: user.id, email: user.email, role: user.role },
-            process.env.JWT_SECRET || 'default_secret',
+            process.env.JWT_SECRET!,
             { expiresIn: '24h' }
         );
 

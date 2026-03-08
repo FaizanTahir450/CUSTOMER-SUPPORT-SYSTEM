@@ -6,6 +6,7 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
+    role?: string;
   };
 }
 
@@ -25,11 +26,12 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     
     req.user = {
       id: decoded.sub,
-      email: decoded.email
+      email: decoded.email,
+      role: decoded.role
     };
 
     log?.debug({ userId: req.user.id }, 'Auth successful');
@@ -50,10 +52,11 @@ export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction
   
   if (token) {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
       req.user = {
         id: decoded.sub,
-        email: decoded.email
+        email: decoded.email,
+        role: decoded.role
       };
     } catch (err) {
       // Silently fail - token is optional

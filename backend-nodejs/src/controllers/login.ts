@@ -59,7 +59,7 @@ export async function loginhandler(req: Request, res: Response, next: NextFuncti
         // GENERATE TOKEN
         const token = jwt.sign(
             { sub: user.id, email: user.email, role: user.role },
-            process.env.JWT_SECRET || 'default_secret',
+            process.env.JWT_SECRET!,
             { expiresIn: '7d' }
         );
         
