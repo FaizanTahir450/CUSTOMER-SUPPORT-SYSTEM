@@ -89,6 +89,7 @@ export async function requestPasswordResetHandler(req: Request, res: Response, n
 
         } catch (err) {
             log?.error({ err, email }, 'Failed to store reset token');
+            return res.status(500).json({ error: { code: 'db_error', message: 'Failed to process password reset. Please try again later.' } });
         }
 
         try {
