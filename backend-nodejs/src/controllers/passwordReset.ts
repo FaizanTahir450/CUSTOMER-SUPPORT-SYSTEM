@@ -1,82 +1,100 @@
-import {Request,Response,NextFunction} from 'express';
-import {z} from 'zod';
-import {pool} from '../lib/db';
-import {v4 as uuidv4} from 'uuid';
+import { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
+import { supabase } from '../lib/db';
+import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import { logger } from '../lib/logger';
-import type { RowDataPacket }  from 'mysql2';
 
-const  emailTransporter = nodemailer.createTransport({
+const emailTransporter = nodemailer.createTransport({
     host: process.env.Email_SMTP_HOST,
-    port:587,
-    secure:false,
-    auth:{
+    port: 587,
+    secure: false,
+    auth: {
         user: process.env.Email_SMTP_USER,
         pass: process.env.Email_SMTP_PASSWORD
-    }
-    ,tls:{
+    },
+    tls: {
         rejectUnauthorized: false
     }
 });
+
 const forgetPasswordSchema = z.object({
-    email:z.string().email('invalid email address').trim().toLowerCase()
+    email: z.string().email('invalid email address').trim().toLowerCase()
 });
+
 const resetPasswordSchema = z.object({
-    token:z.string().min(1,'Token is required'),
-    newPassword:z.string().min(10,'Password must be at least 10 characters long')
-    .regex(/[0-9]/,'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/,'Password must contain at least one special character')
+    token: z.string().min(1, 'Token is required'),
+    newPassword: z.string().min(10, 'Password must be at least 10 characters long')
+        .regex(/[0-9]/, 'Password must contain at least one number')
+        .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character')
 });
 
-function hashToken(token:string):string {
+function hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
-
 }
 
-export async function requestPasswordResetHandler(req:Request,res:Response,next:NextFunction){
+export async function requestPasswordResetHandler(req: Request, res: Response, next: NextFunction) {
     const log = (req as any).log || logger;
-    try{
+    try {
         log?.debug({ email: req.body.email }, 'Password reset request attempt');
         const parsed = forgetPasswordSchema.safeParse(req.body);
-        if (!parsed.success){
+        if (!parsed.success) {
             log?.warn({ errors: parsed.error.issues }, 'Password reset validation failed');
             return res.status(400).json(
-                {error:{code:'validation error',message:parsed.error.issues[0]?.message|| 'invalid input'}}
+                { error: { code: 'validation error', message: parsed.error.issues[0]?.message || 'invalid input' } }
             );
         }
-        const {email} = parsed.data;
+        const { email } = parsed.data;
         log?.debug({ email }, 'Checking if user exists');
-        const [rows] = await pool.execute<RowDataPacket[]>(
-            'select id from users where email = ? LIMIT 1',[email]
-        );
-
-        if (!rows[0]){
-            log?.warn({ email }, 'Password reset requested for non-existent user');
-            return res.status(200).json({message:'If an account with that email exists, a password reset link has been sent'});
+        
+        // CHECK IF USER EXISTS
+        const { data: user, error: selectError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', email)
+            .maybeSingle();
+        
+        if (selectError && selectError.code !== 'PGRST116') {
+            throw selectError;
         }
-        const userId = rows[0].id;
+
+        if (!user) {
+            log?.warn({ email }, 'Password reset requested for non-existent user');
+            return res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent' });
+        }
+        
+        const userId = user.id;
         log?.debug({ email }, 'Generating reset token');
         const resetToken = crypto.randomBytes(32).toString('hex');
         const hashedToken = hashToken(resetToken);
-       
 
-        try{
+        try {
             log?.debug({ userId, email }, 'Storing reset token in database');
-            const result = await pool.execute(
-                'INSERT INTO password_reset_tokens (id,user_id,token,expires_at) VALUES (?,?,?,DATE_ADD(NOW(), INTERVAL 1 HOUR))',
-                [uuidv4(),userId,hashedToken]
-            );
+            const expiresAt = new Date();
+            expiresAt.setHours(expiresAt.getHours() + 1);
+            
+            const { error: insertError } = await supabase
+                .from('password_reset_tokens')
+                .insert([{
+                    id: uuidv4(),
+                    user_id: userId,
+                    token: hashedToken,
+                    expires_at: expiresAt.toISOString()
+                }]);
+            
+            if (insertError) throw insertError;
             log?.debug({ userId }, 'Reset token stored successfully');
 
-        }catch(err){
+        } catch (err) {
             log?.error({ err, email }, 'Failed to store reset token');
+            return res.status(500).json({ error: { code: 'db_error', message: 'Failed to process password reset. Please try again later.' } });
         }
 
         try {
             log?.debug({ email }, 'Sending password reset email');
-            const resetlink= `${process.env.FRONTEND_BASE_URL}reset-password?token=${resetToken}`;
+            const resetlink = `${process.env.FRONTEND_BASE_URL}reset-password?token=${resetToken}`;
             await emailTransporter.sendMail({
                 from: process.env.Email_SMTP_FROM,
                 to: email,
@@ -143,52 +161,75 @@ export async function requestPasswordResetHandler(req:Request,res:Response,next:
 </html>
                 `
             });
-                log?.info({ email }, 'Password reset email sent successfully');
-                return res.status(200).json({message:'If an account with that email exists, a password reset link has been sent'});
-        }catch(err){
-                log?.error({ err, email }, 'Failed to send password reset email');
-                return res.status(500).json({error:{code:'email_error',message:'Failed to send password reset email. Please try again later.'}});
+            log?.info({ email }, 'Password reset email sent successfully');
+            return res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent' });
+        } catch (err) {
+            log?.error({ err, email }, 'Failed to send password reset email');
+            return res.status(500).json({ error: { code: 'email_error', message: 'Failed to send password reset email. Please try again later.' } });
         }
 
-    }catch(err){
+    } catch (err) {
         log?.error({ err }, 'Unexpected error in password reset request');
         return next(err);
     }
 }
 
-export async function resetPasswordHandler(req:Request,res:Response,next:NextFunction){
+export async function resetPasswordHandler(req: Request, res: Response, next: NextFunction) {
     const log = (req as any).log || logger;
-    try{
-    log?.debug({ token: req.body.token?.substring(0, 10) + '...' }, 'Password reset attempt');
-    const parsed = resetPasswordSchema.safeParse(req.body);
-    if (!parsed.success){
-        log?.warn({ errors: parsed.error.issues }, 'Password reset validation failed');
-        return res.status(400).json({error:{code:'validation error',message:parsed.error.issues[0]?.message || 'invalid input'}});
+    try {
+        log?.debug({ token: req.body.token?.substring(0, 10) + '...' }, 'Password reset attempt');
+        const parsed = resetPasswordSchema.safeParse(req.body);
+        if (!parsed.success) {
+            log?.warn({ errors: parsed.error.issues }, 'Password reset validation failed');
+            return res.status(400).json({ error: { code: 'validation error', message: parsed.error.issues[0]?.message || 'invalid input' } });
+        }
+        const { token, newPassword } = parsed.data;
+        
+        log?.debug('Validating reset token');
+        const hashedToken = hashToken(token);
+        
+        // GET RESET TOKEN
+        const { data: resetTokenData, error: selectError } = await supabase
+            .from('password_reset_tokens')
+            .select('user_id')
+            .eq('token', hashedToken)
+            .gt('expires_at', new Date().toISOString())
+            .is('used_at', null)
+            .maybeSingle();
+        
+        if (selectError && selectError.code !== 'PGRST116') {
+            throw selectError;
+        }
+        
+        if (!resetTokenData) {
+            log?.warn('Password reset failed: invalid or expired token');
+            return res.status(400).json({ error: { code: 'invalid_token', message: 'Invalid or expired token' } });
+        }
+        
+        const userId = resetTokenData.user_id;
+        log?.debug({ userId }, 'Hashing new password');
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        
+        log?.debug({ userId }, 'Updating user password');
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ password_hash: passwordHash })
+            .eq('id', userId);
+        
+        if (updateError) throw updateError;
+        
+        log?.debug({ userId }, 'Marking token as used');
+        const { error: markError } = await supabase
+            .from('password_reset_tokens')
+            .update({ used_at: new Date().toISOString() })
+            .eq('token', hashedToken);
+        
+        if (markError) throw markError;
+        
+        log?.info({ userId }, 'Password reset successfully completed');
+        return res.status(200).json({ message: 'Password has been reset successfully' });
+    } catch (err) {
+        log?.error({ err }, 'Unexpected error during password reset');
+        return next(err);
     }
-    const {token,newPassword} = parsed.data;
-    log?.debug('Validating reset token');
-    const hashedToken = hashToken(token);
-    const [rows] = await pool.execute<RowDataPacket[]>(
-        'select user_id from password_reset_tokens where token = ? and expires_at > NOW() and used_at IS null LIMIT 1',[hashedToken]
-    );
-    if(!rows[0]){
-        log?.warn('Password reset failed: invalid or expired token');
-        return res.status(400).json({error:{code:'invalid_token',message:'Invalid or expired token'}});
-    }
-    const userId = rows[0].user_id;
-    log?.debug({ userId }, 'Hashing new password');
-    const passwordHash = await bcrypt.hash(newPassword,10);
-    log?.debug({ userId }, 'Updating user password');
-    await pool.execute(
-        'update users set password_hash = ? where id = ?',[passwordHash,userId]
-    );
-    log?.debug({ userId }, 'Marking token as used');
-    await pool.execute(
-        'update password_reset_tokens set used_at = NOW() where token = ?',[hashedToken]
-    );
-    log?.info({ userId }, 'Password reset successfully completed');
-    return res.status(200).json({message:'Password has been reset successfully'});
-}catch(err){
-    log?.error({ err }, 'Unexpected error during password reset');
-    return next(err);
-}}
+}

@@ -10,14 +10,21 @@ const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const ADMIN_EMAIL = 'admin@lumina.com';
 
+  // Check authentication on component mount
   useEffect(() => {
-    // Check authentication and admin status whenever location changes (after login/logout)
     const authenticated = authUtils.isAuthenticated();
     const user = authUtils.getUser();
     setIsAuthenticated(authenticated);
-    setIsAdmin(authenticated && user?.email === ADMIN_EMAIL);
+    setIsAdmin(authenticated && user?.role === 'admin');
+  }, []);
+
+  // Check authentication whenever location changes (after login/logout)
+  useEffect(() => {
+    const authenticated = authUtils.isAuthenticated();
+    const user = authUtils.getUser();
+    setIsAuthenticated(authenticated);
+    setIsAdmin(authenticated && user?.role === 'admin');
   }, [location]);
 
   const handleLogout = () => {

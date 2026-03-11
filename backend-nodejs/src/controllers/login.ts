@@ -2,8 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import type { RowDataPacket } from 'mysql2';
-import { pool } from '../lib/db';
+import { supabase } from '../lib/db';
 import { logger } from '../lib/logger';
 
 const loginschema = z.object({
@@ -29,31 +28,44 @@ export async function loginhandler(req: Request, res: Response, next: NextFuncti
             });
         }
         const { email, password } = parsed.data;
-        const [users] = await pool.execute<RowDataPacket[]>(
-            `select id,email,password_hash,name,created_at from users where email = ?`, [email]
-        );
-        const user = users[0];
+        
+        // GET USER BY EMAIL
+        const { data: user, error: selectError } = await supabase
+            .from('users')
+            .select('id, email, password_hash, name, role, created_at')
+            .eq('email', email)
+            .maybeSingle();
+        
+        if (selectError && selectError.code !== 'PGRST116') {
+            throw selectError;
+        }
+        
         if (!user) {
             log?.warn({ email }, 'Login failed: user not found');
             return res.status(401).json({
-                error: { code: "invalid credentials", message: "Invalid email or password    " }
+                error: { code: "invalid credentials", message: "Invalid email or password" }
             })
         }
-        const match = await bcrypt.compare(password,user.password_hash);
-        if(!match){
+        
+        // VERIFY PASSWORD
+        const match = await bcrypt.compare(password, user.password_hash);
+        if (!match) {
             log?.warn({ email }, 'Login failed: invalid password');
-            return res.status(401).json({error:{code:"invalid credentials",message:"Invalid email or password"}})
+            return res.status(401).json({ 
+                error: { code: "invalid credentials", message: "Invalid email or password" } 
+            })
         }
 
+        // GENERATE TOKEN
         const token = jwt.sign(
-            { sub: user.id, email: user.email },
-            process.env.JWT_SECRET || 'default_secret',
+            { sub: user.id, email: user.email, role: user.role },
+            process.env.JWT_SECRET!,
             { expiresIn: '7d' }
-
         );
+        
         log?.info({ userId: user.id, email: user.email }, 'Login successful');
         return res.status(200).json({
-            user: { id: user.id, email: user.email, name: user.name, createdAt: user.created_at },
+            user: { id: user.id, email: user.email, name: user.name, role: user.role, createdAt: user.created_at },
             token
         });
 

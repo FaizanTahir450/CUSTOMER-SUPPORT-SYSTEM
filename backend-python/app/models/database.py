@@ -28,7 +28,7 @@ def init_database():
         logger.error(f"Error initializing Supabase: {e}")
         raise
 
-def get_mysql_service() -> SupabaseService:
+def get_db_service() -> SupabaseService:
     """Get the global database service instance (Supabase/PostgreSQL)."""
     global _db_service
     
@@ -48,10 +48,10 @@ def get_order_info(user_id: str, query: str) -> str:
     Returns:
         Formatted string with order information or empty string if no orders found
     """
-    mysql_service = get_mysql_service()
+    db_service = get_db_service()
     
     try:
-        results, error = mysql_service.execute_query_safe(
+        results, error = db_service.execute_query_safe(
             """
             SELECT order_id, status, total, created_at
             FROM orders
@@ -87,9 +87,9 @@ def get_order_info(user_id: str, query: str) -> str:
 
 def get_orders(user_id: str):
     """Return raw list of orders for the user (list of dicts) or (None, error)."""
-    mysql_service = get_mysql_service()
+    db_service = get_db_service()
     try:
-        results, error = mysql_service.execute_query_safe(
+        results, error = db_service.execute_query_safe(
             """
             SELECT order_id, status, total, created_at
             FROM orders
@@ -108,7 +108,7 @@ def cancel_order(order_id: str, user_id: str) -> tuple[bool, str | None]:
 
     Uses `SupabaseService.cancel_order` which only updates when status is pending.
     """
-    mysql_service = get_mysql_service()
+    mysql_service = get_db_service()
     try:
         success, error = mysql_service.cancel_order(order_id, user_id)
         return success, error

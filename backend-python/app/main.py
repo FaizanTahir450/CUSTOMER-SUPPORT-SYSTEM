@@ -8,7 +8,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from app.services.graph import create_support_graph
-from app.models.database import init_database, get_mysql_service
+from app.models.database import init_database, get_db_service
 from app.services.vector_store import init_vector_store
 from app.services.memory import LLMCustomerSupportMemory
 from app.services.email.poller import EmailPoller
@@ -16,6 +16,7 @@ from app.config import Config
 import uvicorn
 import traceback
 import logging
+import jwt
 from typing import Optional
 
 # ── Logging setup ──────────────────────────────────────────────────────────
@@ -106,6 +107,45 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
+# ── JWT authentication ─────────────────────────────────────────────────────
+def verify_jwt(authorization: str = Header(None)) -> str:
+    """Verify JWT token from Authorization header and extract user_id."""
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Authorization header. Provide: Authorization: Bearer <token>"
+        )
+    
+    try:
+        # Authorization format: "Bearer <token>"
+        parts = authorization.split(' ')
+        if len(parts) != 2 or parts[0].lower() != 'bearer':
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid Authorization header format. Use: Bearer <token>"
+            )
+        
+        token = parts[1]
+        jwt_secret = Config.JWT_SECRET
+        
+        decoded = jwt.decode(token, jwt_secret, algorithms=['HS256'])
+        user_id = decoded.get('sub')
+        
+        if not user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token: missing user_id (sub claim)"
+            )
+        
+        return user_id
+        
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"Invalid JWT token: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid or malformed token")
+
+
 # ── API Key authentication ─────────────────────────────────────────────────
 def verify_api_key(x_api_key: str = Header(None)) -> str:
     """Verify API key for protected endpoints."""
@@ -129,7 +169,6 @@ def verify_api_key(x_api_key: str = Header(None)) -> str:
 
 
 class ChatRequest(BaseModel):
-    user_id: str
     message: str
 
 class ChatResponse(BaseModel):
@@ -144,13 +183,13 @@ class HistoryResponse(BaseModel):
 @app.post("/chat", response_model=ChatResponse)
 @limiter.limit(f"{Config.RATE_LIMIT_PER_MINUTE}/minute")
 async def chat(
-    request: Request,                   # <-- Added for SlowAPI
-    payload: ChatRequest,               # <-- Renamed from 'request' to 'payload'
-    api_key: str = Depends(verify_api_key)
+    request: Request,
+    payload: ChatRequest,
+    user_id: str = Depends(verify_jwt)
 ):
     """
     Chat endpoint for customer support interactions.
-    Requires X-API-Key header if API_KEY is configured.
+    Requires JWT token in Authorization header: Authorization: Bearer <token>
     """
     try:
         if support_graph is None:
@@ -160,19 +199,19 @@ async def chat(
                 detail="Support system not initialized. Check server logs for errors."
             )
 
-        logger.info(f"Chat request from user {payload.user_id}")
+        logger.info(f"Chat request from user {user_id}")
         
-        mysql_service = get_mysql_service()
+        mysql_service = get_db_service()
         memory = LLMCustomerSupportMemory(
             mysql_service=mysql_service,
-            user_id=payload.user_id
+            user_id=user_id
         )
         memory.load_from_db()
 
         conversation_history = memory.get_conversation_history()
 
         result = support_graph.invoke({
-            "user_id":              payload.user_id,
+            "user_id":              user_id,
             "message":              payload.message,
             "response":             "",
             "classification":       "",
@@ -182,28 +221,36 @@ async def chat(
             "conversation_history": conversation_history,
         })
 
-        logger.info(f"Chat response generated for user {payload.user_id}")
-        return ChatResponse(response=result["response"])
+        bot_response = result["response"]
+        
+        # Extract and save LLM facts only (no conversation history)
+        memory.update_memory(payload.message)
+
+        logger.info(f"Chat response generated for user {user_id}")
+        return ChatResponse(response=bot_response)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in /chat endpoint for user {payload.user_id}:")
+        logger.error(f"Error in /chat endpoint for user {user_id}:")
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
-@app.get("/history/{user_id}", response_model=HistoryResponse)
+@app.get("/history", response_model=HistoryResponse)
 @limiter.limit(f"{Config.RATE_LIMIT_PER_MINUTE * 2}/minute")
-async def get_history(request: Request, user_id: str, api_key: str = Depends(verify_api_key)):
+async def get_history(
+    request: Request,
+    user_id: str = Depends(verify_jwt)
+):
     """
-    Retrieve conversation history and memory for a user.
-    Requires X-API-Key header if API_KEY is configured.
+    Retrieve conversation history and memory for the authenticated user.
+    Requires JWT token in Authorization header: Authorization: Bearer <token>
     """
     try:
         logger.info(f"History request for user {user_id}")
         
-        mysql_service = get_mysql_service()
+        mysql_service = get_db_service()
         memory = LLMCustomerSupportMemory(
             mysql_service=mysql_service,
             user_id=user_id

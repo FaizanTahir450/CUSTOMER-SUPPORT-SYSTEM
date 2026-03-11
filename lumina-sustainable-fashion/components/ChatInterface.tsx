@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Message, Config } from '../types';
 import { GeminiService } from '../services/geminiService';
+import { authToken } from '../services/client';
 
 const QUICK_QUESTIONS = [
   "What's your return policy?",
@@ -65,10 +66,18 @@ const ChatInterface: React.FC = () => {
         botResponse = await geminiService.generateResponse(message);
       } else {
         // Fallback to local backend
+        const token = authToken.get();
+        if (!token) {
+          throw new Error('Not authenticated. Please login first.');
+        }
+
         const response = await fetch(`${config.apiUrl}/chat`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: config.userId, message })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ message })
         });
         if (!response.ok) throw new Error('Backend disconnected');
         const data = await response.json();

@@ -30,7 +30,7 @@ class TestChatEndpoint:
     """Test the chat endpoint."""
     
     @patch('app.support_graph')
-    @patch('app.get_mysql_service')
+    @patch('app.get_db_service')
     @patch('app.LLMCustomerSupportMemory')
     def test_chat_success(self, mock_memory_class, mock_get_service, mock_graph, client):
         """Test successful chat interaction."""
@@ -83,7 +83,7 @@ class TestChatEndpoint:
 class TestHistoryEndpoint:
     """Test the conversation history endpoint."""
     
-    @patch('app.get_mysql_service')
+    @patch('app.get_db_service')
     @patch('app.LLMCustomerSupportMemory')
     def test_get_history_success(self, mock_memory_class, mock_get_service, client):
         """Test successful history retrieval."""
@@ -119,7 +119,7 @@ class TestRateLimiting:
     """Test rate limiting functionality."""
     
     @patch('app.support_graph')
-    @patch('app.get_mysql_service')
+    @patch('app.get_db_service')
     @patch('app.LLMCustomerSupportMemory')
     def test_rate_limit_enforcement(self, mock_memory_class, mock_get_service, mock_graph, client):
         """Test that rate limiting is enforced."""

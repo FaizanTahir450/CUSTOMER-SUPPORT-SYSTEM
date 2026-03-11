@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from app.services.email.gmail import GmailService
 from app.services.memory import LLMCustomerSupportMemory
-from app.models.database import get_mysql_service
+from app.models.database import get_db_service
 from app.config import Config
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class EmailPoller:
     def __init__(self, support_graph):
         self.support_graph = support_graph
         self.gmail_service: Optional[GmailService] = None   # lazy-init in thread
-        self.mysql_service = get_mysql_service()
+        self.mysql_service = get_db_service()
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
